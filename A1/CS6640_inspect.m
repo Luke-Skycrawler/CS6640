@@ -38,7 +38,7 @@ defect_names(8).defect = 'no bottle';
 
 list = dir([d_name,'\*.jpg']);
 number_of_files = length(list);
-for k = 1:number_of_files
+for k = 97:97
     report(k).name = [];
     report(k).defects = [];
 end
@@ -53,7 +53,9 @@ for k = 1:number_of_files
     % check for no bottle error
     d(8) = CS6640_defect_no_bottle(I);
     defects(k,:) = d;
-    report(k).defects = d;
+    if d(8) > thresholds(8)
+        report(k).defects = defect_names(8);
+    end
 end
 end
 
@@ -199,8 +201,27 @@ function p = CS6640_defect_no_bottle(im)
 %
 
 p = 0;  % replace this line with code to determine "No bottle" probability
+shape = size(im);
+w = shape(2);
+h = shape(1);
+im_culled = im(:, round(w / 3):round(w * 2/ 3), :);
+%imshow(im_culled);
+gray = im2gray(im_culled);
+%gray = im_culled(:, :, 2);
+%max(gray(:));
+%figure;
+% imhist(gray);
+%otsu = graythresh(gray);
+otsu = 150 / 255;
+l = gray < otsu * 255;
+u = gray >= otsu * 255;
 
-gray = rgb2gray(im);
-hist(
+nnz = sum(u(:));
+ratio = nnz / (nnz + sum(l(:)));
+p = pmap(ratio, 0.85, 0.05);
+%p = ratio;
+%[counts, bins] = imhist(gray);
 end
+
+
 
