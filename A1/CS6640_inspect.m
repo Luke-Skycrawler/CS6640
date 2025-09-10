@@ -38,7 +38,7 @@ defect_names(8).defect = 'no bottle';
 
 list = dir([d_name,'\*.jpg']);
 number_of_files = length(list);
-for k = 97:97
+for k = 1:number_of_files
     report(k).name = [];
     report(k).defects = [];
 end
@@ -218,10 +218,70 @@ u = gray >= otsu * 255;
 
 nnz = sum(u(:));
 ratio = nnz / (nnz + sum(l(:)));
-p = pmap(ratio, 0.85, 0.05);
+p0 = pmap(ratio, 0.85, 0.05);
 %p = ratio;
 %[counts, bins] = imhist(gray);
+
+% CS6640_defect_no_bottle - determine if no bottle in middle of image
+% On input:
+%     im (MxNx3 array): input image
+% On output:
+%     p (float): probability there's no bottle in middle
+% Call:
+%     b = CS6640_defect_no_bottle(bot1);
+% Author:
+%     Haoyang Shi
+%     UU
+%     Fall 2025
+%
+
+% p = 0;  % replace this line with code to determine "No bottle" probability
+% shape = size(im);
+% w = shape(2);
+% h = shape(1);
+% im_culled = im(:, round(w / 3):round(w * 2/ 3), :);
+
+% gray = im2gray(im_culled);
+
+%[gx, gy] = imgradientxy(im_culled);
+%[gx, gy] = imgradientxy(gray);
+%imagesc(gy);
+
+
+% convolution method
+gx_stencil = zeros(3, 3);
+gy_stencil = zeros(3, 3);
+
+gx_stencil(:, 1) = -1;
+gx_stencil(:, 3) = 1;
+
+gy_stencil(1, :) = -1;
+gy_stencil(3, :) = 1;
+
+%gx = conv2(gray, gx_stencil);
+%gy = conv2(gray, gy_stencil);
+gx = imfilter(gray, gx_stencil); 
+gy = imfilter(gray, gy_stencil); 
+
+%imshow(mat2gray(gy));
+gxgy = gx .* gx + gy .* gy;
+%imshow(mat2gray(gxgy));
+sum_grad = sum(gxgy(:));
+p = sum_grad;
+mean0 = 6.29e5;
+mean1 = 3.48e6;
+
+d1 = abs(sum_grad - mean0);
+d2 = abs(sum_grad - mean1);
+
+p1 = d2 * d2 / (d2 * d2 + d1 * d1);
+
+p = 1 - (1 - p0) * (1 - p1);
 end
 
-
+function p = pmap(x, c, w)
+    k = 2*log(9)/w;
+    p = 1 ./ (1 + exp(-k*(x - c)));
+    % p = atan(k * (r - c)) / pi + 0.5;
+end
 
