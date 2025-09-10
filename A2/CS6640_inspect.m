@@ -46,7 +46,7 @@ for k = 1:number_of_files
 end
 defects = zeros(number_of_files,8);
 
-for k = 1: number_of_files
+for k = 1:number_of_files
     filename = list(k).name;
     report(k).name = [d_name,'\',filename]; %filename;
     I = imread([d_name,'\',filename]);
@@ -110,19 +110,43 @@ end
 
 centers = [137, 168, 119] - 61;
 dy = abs(y - centers);
-p = 1- dy(2) / (centers(2) - centers(1));
+p = 1.0 - dy(2) / (centers(2) - centers(1));
 p = max(p, 0);
 if y > centers(2)
-    p = 1;
+    p = 1.0;
 end
-% idx(:, 2)
-% imagesc(gy);
-% imagesc(im_bin);
-% imagesc(idx);
-
 
 % --------------------------------------------------
 % kmeans method-------------------------------
+pts = double(reshape(im(:,:,1:3),288*352,3));
+[cidx, ctrs] = kmeans(pts,3);
+img = reshape(cidx,288,352);
+
+
+group_dark = 1;
+for i = 2:3
+    if ctrs(i, 1) < ctrs(group_dark, 1)
+        group_dark = i;
+    end
+end
+group_coke = img == group_dark;
+coke_culled = group_coke(70: round(h * 2 / 3), round(w * 0.45):round(w * 0.55), :);
+[rows, cols] = find(coke_culled);
+y1 = min(rows);
+if isempty(y1)
+    y1 = 255;
+end
+
+centers = [137, 168, 119] - 69;
+dy = abs(y1 - centers);
+p1 = 1.0 - dy(2) / (centers(2) - centers(1));
+p1 = max(p1, 0);
+if y1 > centers(2)
+    p1 = 1.0;
+end
+
+p = (p + p1) / 2;
+
 
 end
 
@@ -148,7 +172,9 @@ im_culled = im(62: round(h * 2 / 3), round(w / 3):round(w * 2/ 3), :);
 
 % --------------------------------------------------
 % thresholding method-------------------------------
-im_bin = imbinarize((im_culled(:, :, 1)));
+otsu = 0.5922;
+im_bin = im_culled(:, :, 1) > otsu * 255;
+
 [gx, gy] = imgradientxy(im_bin);
 idx = bitand(gy < 0, gx == 0);
 
@@ -170,6 +196,35 @@ if y < centers(3)
 end
 
 
+%------------------------------
+% kmeans method
+pts = double(reshape(im(:,:,1:3),288*352,3));
+[cidx, ctrs] = kmeans(pts,3);
+img = reshape(cidx,288,352);
+
+
+group_dark = 1;
+for i = 2:3
+    if ctrs(i, 1) < ctrs(group_dark, 1)
+        group_dark = i;
+    end
+end
+group_coke = img == group_dark;
+coke_culled = group_coke(70: round(h * 2 / 3), round(w * 0.45):round(w * 0.55), :);
+[rows, cols] = find(coke_culled);
+y1 = min(rows);
+if isempty(y1)
+    y1 = 255;
+end
+centers = [137, 168, 119] - 69;
+dy1 = abs(y1 - centers);
+p1 = 1- dy1(3) / (centers(1) - centers(3));
+p1 = max(p1, 0);
+if y1 < centers(3)
+    p1 = 1;
+end
+
+p = (p + p1) / 2;
 end
 
 % Defect 3: label missing
