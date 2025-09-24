@@ -27,6 +27,7 @@ function [report,defects,thresholds] = CS6640_inspect(d_name)
 thresholds = -ones(8,1);
 thresholds(1) = 0.5;
 thresholds(2) = 0.5;
+thresholds(6) = 0.5;
 thresholds(8) = 0.9;
 
 defect_names(1).defect = 'underfilled';
@@ -57,10 +58,15 @@ for k = 1:number_of_files
     if d(8) > thresholds(8)
         report(k).defects = defect_names(8);
     else  
-        d(1) = CS6640_defect_under_filled(I);
-        d(2) = CS6640_defect_over_filled(I);
+        % d(1) = CS6640_defect_under_filled(I);
+        % d(2) = CS6640_defect_over_filled(I);
+        % d(3) = CS6640_defect_label_missing(I);
+        % d(4) = CS6640_defect_white_label(I);
+        % d(5) = CS6640_defect_not_straight(I);
+        d(6) = CS6640_defect_no_cap(I);
+        % d(7) = CS6640_defect_deformed(I);
 
-        for j = 1: 2
+        for j = 1: 7
             if d(j) > thresholds(j)
                 report(k).defects = defect_names(j);
             end
@@ -295,12 +301,39 @@ function p = CS6640_defect_no_cap(im)
 % Call:
 %     b = CS6640_defect_no_cap(bot1);
 % Author:
-%     <Your name>
+%     Haoyang Shi
 %     UU
 %     Fall 2025
 %
 
-p = 0;  % replace this with code to determine "No cap" probability
+% texture method
+shape = size(im);
+w = shape(2);
+h = shape(1); 
+im_culled = im(1: 150, round(w / 3):round(w * 2/ 3), :);
+
+texture = stdfilt(im_culled, true(5));
+% imshow(texture);
+% imshow(im_culled);
+% imagesc(texture);
+
+
+window = im_culled(20: 40, 50: 70, :);
+texture_window = texture(20: 40, 50: 70, 1);
+mean_texture = mean(texture_window, [1, 2]);
+
+variance_texture = std(texture_window, 0, [1, 2]);
+mean_texture(:);
+
+% find the ratio of pixels with texture value > 5.0
+large_var = texture_window(:) > 5.0;
+percent = sum(large_var);
+percent = percent / (21 * 21);
+p = percent;
+% variance_texture(:)
+% figure();
+% imshow(window);
+% p = 0;  % replace this with code to determine "No cap" probability
 end
 
 % Defect 7: deformed
