@@ -47,7 +47,7 @@ for k = 1:number_of_files
 end
 defects = zeros(number_of_files,8);
 
-for k = 1:number_of_files
+for k = 1: number_of_files
     filename = list(k).name;
     report(k).name = [d_name,'\',filename]; %filename;
     I = imread([d_name,'\',filename]);
@@ -310,30 +310,49 @@ function p = CS6640_defect_no_cap(im)
 shape = size(im);
 w = shape(2);
 h = shape(1); 
-im_culled = im(1: 150, round(w / 3):round(w * 2/ 3), :);
+cx = find_center(im); 
+im_culled = im(1: 150, cx - 65: cx + 65, :);
 
 texture = stdfilt(im_culled, true(5));
 % imshow(texture);
 % imshow(im_culled);
 % imagesc(texture);
 
-
-window = im_culled(20: 40, 50: 70, :);
-texture_window = texture(20: 40, 50: 70, 1);
+window = im_culled(20: 40, 55: 75, :);
+texture_window = texture(20: 40, 55: 75, 1);
 mean_texture = mean(texture_window, [1, 2]);
 
 variance_texture = std(texture_window, 0, [1, 2]);
 mean_texture(:);
 
 % find the ratio of pixels with texture value > 5.0
-large_var = texture_window(:) > 5.0;
+large_var = texture_window(:) > 6.0;
 percent = sum(large_var);
 percent = percent / (21 * 21);
-p = percent;
-% variance_texture(:)
+
+% figure(); 
+% imshowpair(texture_window, window, 'montage');
+p0 = percent;
+
+% edge method
+thres = 0.15;
+gray = im2gray(im_culled);
+[bw1, thres] = edge(gray, 'Prewitt', thres);
+scanline = 0;
+for i = 55: 75
+    for j = 1: 10
+        if bw1(j, i)
+            scanline = scanline + 1;
+            break;
+        end
+    end 
+end
+p1 = 1 - scanline / 21;
+p = (p0 + p1) / 2;
 % figure();
 % imshow(window);
-% p = 0;  % replace this with code to determine "No cap" probability
+% figure();
+% imshowpair(bw1, im_culled, 'montage');
 end
 
 % Defect 7: deformed
