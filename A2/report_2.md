@@ -35,6 +35,7 @@ The threshold for binarizing the image was set to 0.5922. This magic number is t
 After getting a binary image, I crop it to the region (62, 117) -(192, 234). This gives the central 1/3 region in width which is between the cap and the label in height. Then I computed gradient $g_x, g_y$ in x and y direction on the cropped, binarized image . 
 
 ![](binaized.png)
+**Figure 2.1.1. Binarized r channel with threshold 0.5922. Detection region is framed in red.** 
 
 I used the criterion `gx == 0 && gy < 0` to detect the horizontal upper boundary of the liquid-filled region. After this filtering, there was only the surface line and a few noise pixels left. For the final step, I took the median of the y-coordinate for the remaining pixels for the detected water level. For the corner case where there is not enough pixels (< 40) left, it is probably an empty bottle, and we set the liquid level to 255, which means very much underfilled.  
 
@@ -42,7 +43,7 @@ I used the criterion `gx == 0 && gy < 0` to detect the horizontal upper boundary
 ![imagesc(gx)](gy.png)
 ![remaining pixels after filtering by gx == 0 and gy < 0. ](liquidlevel.png) -->
 ![Left: gx. Middle: gy. Right: remaining pixels after filtering by gx == 0 and gy < 0. Liquid level is markd in red.](gradientf.png)
-Left: gx. Middle: gy. Right: remaining pixels after filtering by gx == 0 and gy < 0. Liquid level is marked in red.
+**Figure 2.1.2. Left: gx. Middle: gy. Right: remaining pixels after filtering by gx == 0 and gy < 0. Liquid level is marked in red.**
 
 
 ##### 2.2 K-means
@@ -50,7 +51,7 @@ Left: gx. Middle: gy. Right: remaining pixels after filtering by gx == 0 and gy 
 I cropped the image first to the narrow central region as shown below where it's sure to be bottle. Then I ran kmeans with 3 clusters with (r,g,b) as 3d coordinates for each pixel in the cropped image. Then I find the coke cluster by selecting the group with the lowest average red value. Finally, I record the liquid level as the minimum y coordinate for pixels in the coke group.  
 
 ![After kmeans clustering. Culling region is marked in red. Detected liquid level is mark by red horizontal line.](kmeans.png)
-K-means clusters. Detection region is framed in red. Detected liquid level is mark by red horizontal line.
+**Figure 2.2. K-means clusters. Detection region is framed in red. Detected liquid level is mark by red horizontal line.**
 
 ##### 2.3 Combining the two methods
 
@@ -58,8 +59,10 @@ K-means clusters. Detection region is framed in red. Detected liquid level is ma
 
 After getting the liquid level in pixel coordinate from either method, I compute the distance to the average levels of underfilled, perfect, and overfilled, and used the distance ratio for confidence. For example, if the liquid level $y$ lies in range $[y_{\text{perfect}}, y_{\text{under}}]$, then the confidence $p = \frac{y - y_{\text{under}}}{y_{\text{under}} - y_{\text{perfect}}}$. The threshold was set to 0.5, as it would corespond the liquid level right in the middle of $y_{\text{under}}$ and $y_{\text{perfect}}$.
 
+I computed the confidence for thresholding and kmeans independently. Then the two values are averaged to get the final confidence level. 
+
 ![results](results.png)
-Red: liquid surface detected by thresholding method. Green: liquid surface detected by k-means. Blue lines from top to bottom marks the critiria for overfilled, perfect and underfilled. 
+**Figure 2.2. Red: liquid surface detected by thresholding method. Green: liquid surface detected by k-means. Blue lines from top to bottom marks the critiria for overfilled, perfect and underfilled.**
 
 #### 3. Accuracy 
 
