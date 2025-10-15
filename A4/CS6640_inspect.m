@@ -56,21 +56,17 @@ for k = 1: number_of_files
 
     % check for no bottle error
     d(8) = CS6640_defect_no_bottle(I);
-    if d(8) > thresholds(8)
-        report(k).defects = defect_names(8);
-    else  
-        % d(1) = CS6640_defect_under_filled(I);
-        % d(2) = CS6640_defect_over_filled(I);
-        % d(3) = CS6640_defect_label_missing(I);
-        d(4) = CS6640_defect_white_label(I);
-        % d(5) = CS6640_defect_not_straight(I);
-        % d(6) = CS6640_defect_no_cap(I);
-        % d(7) = CS6640_defect_deformed(I);
+    d(1) = CS6640_defect_under_filled(I);
+    d(2) = CS6640_defect_over_filled(I);
+    d(3) = CS6640_defect_label_missing(I);
+    d(4) = CS6640_defect_white_label(I);
+    d(5) = CS6640_defect_not_straight(I);
+    d(6) = CS6640_defect_no_cap(I);
+    d(7) = CS6640_defect_deformed(I);
 
-        for j = 1: 7
-            if d(j) > thresholds(j)
-                report(k).defects = defect_names(j);
-            end
+    for j = 1: 8
+        if d(j) > thresholds(j)
+            report(k).defects = defect_names(j);
         end
     end
     defects(k,:) = d;
@@ -91,6 +87,40 @@ function p = CS6640_defect_under_filled(im)
 %     UU
 %     Fall 2025
 %
+
+shape = size(im);
+w = shape(2);
+h = shape(1);
+im_culled = im(:, round(w / 3):round(w * 2/ 3), :);
+gray = im2gray(im_culled);
+
+gx_stencil = zeros(3, 3);
+gy_stencil = zeros(3, 3);
+
+gx_stencil(:, 1) = -1;
+gx_stencil(:, 3) = 1;
+
+gy_stencil(1, :) = -1;
+gy_stencil(3, :) = 1;
+
+gx = imfilter(gray, gx_stencil); 
+gy = imfilter(gray, gy_stencil); 
+
+gxgy = gx .* gx + gy .* gy;
+sum_grad = sum(gxgy(:));
+mean0 = 6.29e5;
+mean1 = 3.48e6;
+
+d1 = abs(sum_grad - mean0);
+d2 = abs(sum_grad - mean1);
+
+p1 = d2 * d2 / (d2 * d2 + d1 * d1);
+
+p = p1;
+if p > 0.9
+    p = 0.0; 
+    return;
+end
 
 shape = size(im);
 w = shape(2);
@@ -174,6 +204,39 @@ function p = CS6640_defect_over_filled(im)
 %     Fall 2025
 %
 
+shape = size(im);
+w = shape(2);
+h = shape(1);
+im_culled = im(:, round(w / 3):round(w * 2/ 3), :);
+gray = im2gray(im_culled);
+
+gx_stencil = zeros(3, 3);
+gy_stencil = zeros(3, 3);
+
+gx_stencil(:, 1) = -1;
+gx_stencil(:, 3) = 1;
+
+gy_stencil(1, :) = -1;
+gy_stencil(3, :) = 1;
+
+gx = imfilter(gray, gx_stencil); 
+gy = imfilter(gray, gy_stencil); 
+
+gxgy = gx .* gx + gy .* gy;
+sum_grad = sum(gxgy(:));
+mean0 = 6.29e5;
+mean1 = 3.48e6;
+
+d1 = abs(sum_grad - mean0);
+d2 = abs(sum_grad - mean1);
+
+p1 = d2 * d2 / (d2 * d2 + d1 * d1);
+
+p = p1;
+if p > 0.9
+    p = 0.0; 
+    return;
+end
 shape = size(im);
 w = shape(2);
 h = shape(1);
@@ -266,18 +329,48 @@ function p = CS6640_defect_white_label(im)
 % Call:
 %     b = CS6640_defect_white_label(bot1);
 % Author:
-%     <Your name>
+%     Haoyang Shi
 %     UU
 %     Fall 2025
 %
 
-p = 0;  % replace this with code to determine "White label" probability
+shape = size(im);
+w = shape(2);
+h = shape(1);
+im_culled = im(:, round(w / 3):round(w * 2/ 3), :);
+gray = im2gray(im_culled);
 
+gx_stencil = zeros(3, 3);
+gy_stencil = zeros(3, 3);
+
+gx_stencil(:, 1) = -1;
+gx_stencil(:, 3) = 1;
+
+gy_stencil(1, :) = -1;
+gy_stencil(3, :) = 1;
+
+gx = imfilter(gray, gx_stencil); 
+gy = imfilter(gray, gy_stencil); 
+
+gxgy = gx .* gx + gy .* gy;
+sum_grad = sum(gxgy(:));
+mean0 = 6.29e5;
+mean1 = 3.48e6;
+
+d1 = abs(sum_grad - mean0);
+d2 = abs(sum_grad - mean1);
+
+p1 = d2 * d2 / (d2 * d2 + d1 * d1);
+
+p = p1;
+if p > 0.9
+    p = 0.0; 
+    return;
+end
+
+p = 0;  
 [roi, r1, r2, c1, c2] = CS6640_get_center(im);
-% imshow(roi);
 patch = roi(190: 270, :, :);
-% figure();
-% imagesc(patch);
 
 w = size(patch, 2);
 h = size(patch, 1);
@@ -297,12 +390,11 @@ end
 
 mag_mode_normal = 1.3e3;
 white_mode = 1.4e4;
-p = size(find(mags < mag_mode_normal / 2 & white > white_mode / 2), 1) / w;
+p_fft1 = size(find(mags < mag_mode_normal / 2 & ...
+white > white_mode / 2), 1) / w;
 
 % 2d fft
 X = fft2(patch(:, :, 3));
-% figure();
-% imagesc(abs(X));
 mag = abs(X(2:h, 2: w));
 mag_max = max(mag(:));
 mag_mode_white = 1.5e4;
@@ -311,10 +403,13 @@ mag_mode_normal = 5e4;
 dc_white_mode = 1.7e6;
 dc_normal_mode = 7e5;
 white = abs(X(1, 1));
-p1 = max(0, 1 - (mag_max - mag_mode_white) / (mag_mode_normal - mag_mode_white));
-p2 = max(0, min(1, (white - dc_normal_mode) / (dc_white_mode - dc_normal_mode)));
+p1 = max(0, 1 - (mag_max - mag_mode_white) / ...
+(mag_mode_normal - mag_mode_white));
+p2 = max(0, min(1, (white - dc_normal_mode) / ...
+(dc_white_mode - dc_normal_mode)));
 
-p = p1 * p2;
+p_fft2 = p1 * p2;
+p = (p_fft1 + p_fft2) / 2;
 end
 
 % Defect 5: not straight
@@ -351,6 +446,40 @@ function p = CS6640_defect_no_cap(im)
 %
 
 % texture method
+
+shape = size(im);
+w = shape(2);
+h = shape(1);
+im_culled = im(:, round(w / 3):round(w * 2/ 3), :);
+gray = im2gray(im_culled);
+
+gx_stencil = zeros(3, 3);
+gy_stencil = zeros(3, 3);
+
+gx_stencil(:, 1) = -1;
+gx_stencil(:, 3) = 1;
+
+gy_stencil(1, :) = -1;
+gy_stencil(3, :) = 1;
+
+gx = imfilter(gray, gx_stencil); 
+gy = imfilter(gray, gy_stencil); 
+
+gxgy = gx .* gx + gy .* gy;
+sum_grad = sum(gxgy(:));
+mean0 = 6.29e5;
+mean1 = 3.48e6;
+
+d1 = abs(sum_grad - mean0);
+d2 = abs(sum_grad - mean1);
+
+p1 = d2 * d2 / (d2 * d2 + d1 * d1);
+
+p = p1;
+if p > 0.9
+    p = 0.0; 
+    return;
+end
 shape = size(im);
 w = shape(2);
 h = shape(1); 
