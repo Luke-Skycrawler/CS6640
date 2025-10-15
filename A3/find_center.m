@@ -1,9 +1,6 @@
 
 function cx = find_center(im)
 
-% d_name = 'All';
-% filename = 'image109.jpg';
-% im = imread([d_name,'\',filename]);
 % scanline 25
 scanline = im(25, :, :);
 is_red = scanline(:, :, 1) > 150 & ...
@@ -64,7 +61,4 @@ if cx < 66
 elseif cx + 65 > 352
     cx = 352 - 65;
 end
-% figure();
-% plot(is_red); 
-
 end

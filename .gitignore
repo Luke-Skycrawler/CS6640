@@ -3,3 +3,6 @@
 A2/All
 *.html
 A3/All
+A3/output
+A3/*.png
+.vscode/

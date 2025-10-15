@@ -58,13 +58,13 @@ for k = 1: number_of_files
     if d(8) > thresholds(8)
         report(k).defects = defect_names(8);
     else  
-        % d(1) = CS6640_defect_under_filled(I);
-        % d(2) = CS6640_defect_over_filled(I);
-        % d(3) = CS6640_defect_label_missing(I);
-        % d(4) = CS6640_defect_white_label(I);
-        % d(5) = CS6640_defect_not_straight(I);
+        d(1) = CS6640_defect_under_filled(I);
+        d(2) = CS6640_defect_over_filled(I);
+        d(3) = CS6640_defect_label_missing(I);
+        d(4) = CS6640_defect_white_label(I);
+        d(5) = CS6640_defect_not_straight(I);
         d(6) = CS6640_defect_no_cap(I);
-        % d(7) = CS6640_defect_deformed(I);
+        d(7) = CS6640_defect_deformed(I);
 
         for j = 1: 7
             if d(j) > thresholds(j)
@@ -314,10 +314,6 @@ cx = find_center(im);
 im_culled = im(1: 150, cx - 65: cx + 65, :);
 
 texture = stdfilt(im_culled, true(5));
-% imshow(texture);
-% imshow(im_culled);
-% imagesc(texture);
-
 window = im_culled(20: 40, 55: 75, :);
 texture_window = texture(20: 40, 55: 75, 1);
 mean_texture = mean(texture_window, [1, 2]);
@@ -330,8 +326,6 @@ large_var = texture_window(:) > 6.0;
 percent = sum(large_var);
 percent = percent / (21 * 21);
 
-% figure(); 
-% imshowpair(texture_window, window, 'montage');
 p0 = percent;
 
 % edge method
@@ -349,10 +343,6 @@ for i = 55: 75
 end
 p1 = 1 - scanline / 21;
 p = (p0 + p1) / 2;
-% figure();
-% imshow(window);
-% figure();
-% imshowpair(bw1, im_culled, 'montage');
 end
 
 % Defect 7: deformed
@@ -418,4 +408,69 @@ d2 = abs(sum_grad - mean1);
 p1 = d2 * d2 / (d2 * d2 + d1 * d1);
 
 p = p1;
+end
+
+
+function cx = find_center(im)
+
+% scanline 25
+scanline = im(25, :, :);
+is_red = scanline(:, :, 1) > 150 & ...
+    scanline(:, :, 2) < 100 & ...
+    scanline(:, :, 3) < 100;
+
+rises = find(diff(is_red) == 1);
+falls = find(diff(is_red) == -1);
+n_caps = max(length(rises), length(falls));
+
+cap_size = 55;
+bottle_size = 130;
+if n_caps == 3
+    if length(rises) == 3 && length(falls) == 3
+        cx = round((rises(2) + falls(2)) / 2);
+    elseif length(rises) == 2 && length(falls) == 3
+        cx = round((rises(1) + falls(2)) / 2);
+    elseif length(rises) == 3 && length(falls) == 2
+        cx = round((rises(2) + falls(2)) / 2);
+    end
+elseif n_caps == 2
+    if length(rises) == 2
+        gap = rises(2) - rises(1);
+        center_missing = gap > bottle_size * 1.5;
+        if (center_missing)
+            cx = round((rises(1) + rises(2) + cap_size) / 2);
+        else
+            c1 = round(rises(1) + cap_size / 2);
+            c2 = round(rises(2) + cap_size / 2);
+            if abs(c1 - 176) < abs(c2 - 176)
+                cx = c1;
+            else
+                cx = c2;
+            end
+        end 
+    elseif length(falls) == 2
+        gap = falls(2) - falls(1);
+        center_missing = gap > bottle_size * 1.5;
+        if (center_missing)
+            cx = round((falls(1) + falls(2) + cap_size) / 2);
+        else
+            c1 = round(falls(1) - cap_size / 2);
+            c2 = round(falls(2) - cap_size / 2);
+            if abs(c1 - 176) < abs(c2 - 176)
+                cx = c1;
+            else
+                cx = c2;
+            end
+        end
+    end
+    
+else 
+    cx = 176;
+end
+
+if cx < 66
+    cx = 66;
+elseif cx + 65 > 352
+    cx = 352 - 65;
+end
 end
