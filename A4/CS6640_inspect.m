@@ -27,6 +27,8 @@ function [report,defects,thresholds] = CS6640_inspect(d_name)
 thresholds = -ones(8,1);
 thresholds(1) = 0.5;
 thresholds(2) = 0.5;
+thresholds(4) = 0.5;
+thresholds(6) = 0.5;
 thresholds(8) = 0.9;
 
 defect_names(1).defect = 'underfilled';
@@ -46,7 +48,7 @@ for k = 1:number_of_files
 end
 defects = zeros(number_of_files,8);
 
-for k = 1:number_of_files
+for k = 1: number_of_files
     filename = list(k).name;
     report(k).name = [d_name,'\',filename]; %filename;
     I = imread([d_name,'\',filename]);
@@ -57,10 +59,15 @@ for k = 1:number_of_files
     if d(8) > thresholds(8)
         report(k).defects = defect_names(8);
     else  
-        d(1) = CS6640_defect_under_filled(I);
-        d(2) = CS6640_defect_over_filled(I);
+        % d(1) = CS6640_defect_under_filled(I);
+        % d(2) = CS6640_defect_over_filled(I);
+        % d(3) = CS6640_defect_label_missing(I);
+        d(4) = CS6640_defect_white_label(I);
+        % d(5) = CS6640_defect_not_straight(I);
+        % d(6) = CS6640_defect_no_cap(I);
+        % d(7) = CS6640_defect_deformed(I);
 
-        for j = 1: 2
+        for j = 1: 7
             if d(j) > thresholds(j)
                 report(k).defects = defect_names(j);
             end
@@ -265,6 +272,49 @@ function p = CS6640_defect_white_label(im)
 %
 
 p = 0;  % replace this with code to determine "White label" probability
+
+[roi, r1, r2, c1, c2] = CS6640_get_center(im);
+% imshow(roi);
+patch = roi(190: 270, :, :);
+% figure();
+% imagesc(patch);
+
+w = size(patch, 2);
+h = size(patch, 1);
+% % 1d fft
+mags = zeros(w,1);
+white = zeros(w, 1);
+for col = 1: w
+    line = patch(:, col, 3);
+    x = fft(line);
+    avg_mag = max(abs(x(2: h)));
+    mags(col) = avg_mag;    
+    white(col) = x(1);
+end
+% strength = mean(mags)
+% whitescale = mean(white)
+
+
+mag_mode_normal = 1.3e3;
+white_mode = 1.4e4;
+p = size(find(mags < mag_mode_normal / 2 & white > white_mode / 2), 1) / w;
+
+% 2d fft
+X = fft2(patch(:, :, 3));
+% figure();
+% imagesc(abs(X));
+mag = abs(X(2:h, 2: w));
+mag_max = max(mag(:));
+mag_mode_white = 1.5e4;
+mag_mode_normal = 5e4;
+
+dc_white_mode = 1.7e6;
+dc_normal_mode = 7e5;
+white = abs(X(1, 1));
+p1 = max(0, 1 - (mag_max - mag_mode_white) / (mag_mode_normal - mag_mode_white));
+p2 = max(0, min(1, (white - dc_normal_mode) / (dc_white_mode - dc_normal_mode)));
+
+p = p1 * p2;
 end
 
 % Defect 5: not straight
@@ -295,12 +345,48 @@ function p = CS6640_defect_no_cap(im)
 % Call:
 %     b = CS6640_defect_no_cap(bot1);
 % Author:
-%     <Your name>
+%     Haoyang Shi
 %     UU
 %     Fall 2025
 %
 
-p = 0;  % replace this with code to determine "No cap" probability
+% texture method
+shape = size(im);
+w = shape(2);
+h = shape(1); 
+cx = find_center(im); 
+im_culled = im(1: 150, cx - 65: cx + 65, :);
+
+texture = stdfilt(im_culled, true(5));
+window = im_culled(20: 40, 55: 75, :);
+texture_window = texture(20: 40, 55: 75, 1);
+mean_texture = mean(texture_window, [1, 2]);
+
+variance_texture = std(texture_window, 0, [1, 2]);
+mean_texture(:);
+
+% find the ratio of pixels with texture value > 5.0
+large_var = texture_window(:) > 6.0;
+percent = sum(large_var);
+percent = percent / (21 * 21);
+
+p0 = percent;
+
+% edge method
+thres = 0.15;
+gray = im2gray(im_culled);
+[bw1, thres] = edge(gray, 'Prewitt', thres);
+scanline = 0;
+for i = 55: 75
+    for j = 1: 10
+        if bw1(j, i)
+            scanline = scanline + 1;
+            break;
+        end
+    end 
+end
+p1 = 1 - scanline / 21;
+p = (p0 + p1) / 2;
 end
 
 % Defect 7: deformed
@@ -367,3 +453,4 @@ p1 = d2 * d2 / (d2 * d2 + d1 * d1);
 
 p = p1;
 end
+
