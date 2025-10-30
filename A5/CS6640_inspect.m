@@ -49,10 +49,6 @@ for k = 1:number_of_files
 end
 defects = zeros(number_of_files,8);
 
-% for k = 5: 6
-% for k = 140: 140
-% for k = 129: 129
-% for k = 7:7
 for k = 1: number_of_files
     filename = list(k).name;
     report(k).name = [d_name,'\',filename]; %filename;
@@ -60,14 +56,14 @@ for k = 1: number_of_files
     d = zeros(1,8);
 
     % check for no bottle error
-    % d(8) = CS6640_defect_no_bottle(I);
-    % d(1) = CS6640_defect_under_filled(I);
-    % d(2) = CS6640_defect_over_filled(I);
-    % d(3) = CS6640_defect_label_missing(I);
-    % d(4) = CS6640_defect_white_label(I);
+    d(8) = CS6640_defect_no_bottle(I);
+    d(1) = CS6640_defect_under_filled(I);
+    d(2) = CS6640_defect_over_filled(I);
+    d(3) = CS6640_defect_label_missing(I);
+    d(4) = CS6640_defect_white_label(I);
     d(5) = CS6640_defect_not_straight(I);
-    % d(6) = CS6640_defect_no_cap(I);
-    % d(7) = CS6640_defect_deformed(I);
+    d(6) = CS6640_defect_no_cap(I);
+    d(7) = CS6640_defect_deformed(I);
 
     for j = 1: 8
         if d(j) > thresholds(j)
@@ -427,11 +423,12 @@ function p = CS6640_defect_not_straight(im)
 % Call:
 %     b = CS6640_defect_not_straight(bot1);
 % Author:
-%     <Your name>
+%     Haoyang Shi
 %     UU
 %     Fall 2025
 %
 
+% exclude no bottle case first
 shape = size(im);
 w = shape(2);
 h = shape(1);
@@ -470,11 +467,9 @@ end
 patch = roi(170: 275, :, :);
 patchg = im2gray(patch);
 patchb = patchg > 150;
-% figure();
 se = strel('line',10,0);
 im6tc = imerode(patchb,se);
 im6tc = imdilate(im6tc,se);
-% combo(patchb,im6tc);
 
 [l, n] = bwlabel(im6tc);
 
@@ -495,7 +490,6 @@ else
     p = 0;
     return;
 end
-% imshow(comp_strip);
 [rows, cols] = find(comp_strip);
 s = size(rows, 1);
 ri = round(s / 2);
@@ -503,37 +497,32 @@ r = rows(ri);
 c = cols(ri);
 
 
-% % eigs method
-% scan1 = CS6640_range_scan(comp_strip,r, c);
-% % figure();
-% % imshow(comp_strip);
-% % polarplot(scan1);
+% eigs method
+scan1 = CS6640_range_scan(comp_strip,r, c);
+reference = ones(5, 100);
+scanref = CS6640_range_scan(reference, 3, 50);
+% reference
+pts2 = CS6640_scan2pts(scanref,35,28,10);
+pts20 = [pts2(:,1)-mean(pts2(:,1)),pts2(:,2)-mean(pts2(:,2))];
+CC2 = pts20'*pts20/length(pts20(:,1));
+[VV2,DD2] = eigs(CC2);
 
-% reference = ones(5, 100);
-% scanref = CS6640_range_scan(reference, 3, 50);
-% % polarplot(scanref);
-% % reference
-% pts2 = CS6640_scan2pts(scanref,35,28,10);
-% pts20 = [pts2(:,1)-mean(pts2(:,1)),pts2(:,2)-mean(pts2(:,2))];
-% CC2 = pts20'*pts20/length(pts20(:,1));
-% [VV2,DD2] = eigs(CC2);
+% eigs for strip 
+pts1 = CS6640_scan2pts(scan1,35,28,10);
+pts10 = [pts1(:,1)-mean(pts1(:,1)),pts1(:,2)-mean(pts1(:,2))];
+CC1 = pts10'*pts10/length(pts10(:,1));
+[VV1,DD1] = eigs(CC1);
 
-% % eigs for strip 
-% pts1 = CS6640_scan2pts(scan1,35,28,10);
-% pts10 = [pts1(:,1)-mean(pts1(:,1)),pts1(:,2)-mean(pts1(:,2))];
-% CC1 = pts10'*pts10/length(pts10(:,1));
-% [VV1,DD1] = eigs(CC1);
-
-% white = 0;
-% if DD1(2, 2) > DD1(1, 1) * 0.3
-%     white = 1;
-% end
-% if white
-% p = abs(VV1(2, 1));
-% else 
-% p = abs(VV1(2, 1)) / 0.1;
-% end
-% p = min(p, 1.0);
+white = 0;
+if DD1(2, 2) > DD1(1, 1) * 0.3
+    white = 1;
+end
+if white
+p1 = abs(VV1(2, 1));
+else 
+p1 = abs(VV1(2, 1)) / 0.1;
+end
+p1 = min(p1, 1.0);
 
 
 % procrustes method
@@ -554,24 +543,15 @@ bl = [cols(ibl), rows(ibl)];
 tr = [cols(itr), rows(itr)];
 
 X = [tr; br; bl; tl; ];
-% reference is 5x100 rectangle
 Y = [100, 0; 100, 5; 0, 5; 0, 0; ];
-% Y = [0, 100; 5, 100; 5, 0; 0, 0; 0, 100];
 [d,Z, transform] = procrustes(X,Y);
 
 rotation = transform.T;
 angle = rotation(2, 1);
-p1 = abs(angle) / 0.1;
-p = min(p1, 1.0);
-% figure();
-% plot(X(:,1),X(:,2),"x-")
-% hold on
-% plot(Y(:,1),Y(:,2),"o-")
-% plot(Z(:,1),Z(:,2),"s-")
-% axis equal
-% legend("Target shape (X)","Reference shape (Y)", ...
-%     "Transformed shape (Z)")
-% hold off
+p2 = abs(angle) / 0.1;
+p2 = min(p2, 1.0);
+
+p = (p1 + p2) / 2;
 end
 
 % Defect 6: no cap
@@ -727,3 +707,249 @@ p1 = d2 * d2 / (d2 * d2 + d1 * d1);
 p = p1;
 end
 
+function [ROI,r1,r2,c1,c2] = CS6640_get_center(im)
+% CS6640_get_center - get center ROI of bottles image
+% On inut:
+%     im (MxNx3 array): RGB image
+% On output:
+%     ROI (hxwx3 array): center part of image
+%     r1 (int): first row of ROI in im
+%     r2 (int): last row of ROI in im
+%     c1 (int): first col of ROI in im
+%     c2 (int): first col of ROI in im
+% Call:
+%     [ROI,r1,r2,c1,c2] = CS6640_get_center(im001);
+% Author:
+%     T. Henderson
+%     UU
+%     Fall 2025
+%
+
+MIN_WIDTH = 35;
+MEAN_CTR_COL = 180;
+MAX_CTR_DIST = 30;
+
+% default if no center found
+ROI = im;
+r1 = 1;
+r2 = 288;
+c1 = 180-60;;
+c2 = 180+60;
+
+img = double(im(:,:,3)<100);
+row25 = img(25,:);
+cols = find(row25);
+min_col = min(cols);
+max_col = max(cols);
+tv = [min_col:max_col];
+len_tv = length(tv);
+found = 0;
+ctrs = zeros(len_tv,3);
+for t = 1:len_tv
+    row25_cc = bwlabel(row25);
+    num_cc = max(row25_cc);
+    for cc = 1:num_cc
+        indexes = find(row25_cc==cc);
+        if length(indexes)<MIN_WIDTH
+            row25_cc(indexes) = 0;
+        end
+    end
+    row25_cc = bwlabel(row25_cc);
+    num_cc = max(row25_cc);
+    ind = zeros(num_cc,1);
+    if num_cc>0&num_cc<4
+        for cc = 1:num_cc
+            cols = find(row25_cc==cc);
+            if length(cols)>MIN_WIDTH
+                ind(cc) = ceil(mean(cols));
+            end
+        end
+        ctrs(t,1:num_cc) = ind';
+    end
+end
+final_centers = mode(ctrs);
+indexes = find(final_centers>0);
+num_indexes = length(indexes);
+if num_indexes==0
+    return
+end
+actual_ctr = 0;
+for k = 1:num_indexes
+    if abs(final_centers(k)-MEAN_CTR_COL)<MAX_CTR_DIST
+        actual_ctr = final_centers(k);
+    end
+end
+if actual_ctr>0
+    c1 = actual_ctr - 60;
+    c2 = actual_ctr + 60;
+end
+ROI = im(r1:r2,c1:c2,:);
+
+tch = 0;
+end
+
+function pts = CS6640_scan2pts(scan,r,c,num_rows)
+% CS6640_scan2pts - convert 360 degree range scan to x,y point set
+% On input:
+%     scan (1x360 vector): distance to background in 1 degree directions
+%     r (int): row value
+%     c (int): column value
+%     num_rows (int): number of rows in scanned image
+% On output:
+%     pts (nx2 array): x,y coordinates of the 360 scan distances
+% Call:
+%     pts1 = CS6640_scan2pts(scan1,185,181,288);
+% Author:
+%     T. Henderson
+%     UU
+%     Fall 2025
+%
+
+DEG2RAD = pi/180;
+
+x = c;
+y = num_rows - r + 1;
+
+ppts = zeros(360,2);
+for p = 1:360
+    rho = scan(p);
+    theta = (p-1)*DEG2RAD;
+    del_y = sin(theta);
+    del_x = cos(theta);
+    pts(p,1) = x + rho*del_x;
+    pts(p,2) = y + rho*del_y;
+end
+end
+function scan = CS6640_range_scan(im,r,c)
+% CS6640_range_scan - 360 degree scan of pixel neighborhood
+% On input:
+%     im (MxN array): binary image
+%     r (int): row value
+%     c (int): column value
+% On output:
+%     scan (1x360 vector): distance to background in 1 degree directions
+% Call:
+%     scan1 = CS6640_range_scan(im1t,185,181);
+% Author:
+%     T. Henderson
+%     UU
+%     Fall 2025
+%
+
+DEL_THETA = 1;
+step = 0.1;
+
+scan = zeros(1,360);
+for a = 0:359
+    theta = a*pi/180;
+    scan(a+1) = CS6640_dist_to_bkgnd_3(im,r,c,theta,step);
+end
+end
+function d = CS6640_dist_to_bkgnd_3(im,r,c,theta,step)
+% CS6640_dist_to_bkgnd_3 - find distance in dir theta to background
+% On input:
+%     im (MxN array): binary image
+%     r (int): row value
+%     c (int): column value
+%     theta (float radians): direction to look
+%     step (float): step size to move in scan direction
+% On output:
+%     d (float): distance to background in direction theta
+% Call:
+%     scan(a+1) = CS6640_dist_to_bkgnd_3(im,r,c,pi/4,0.2);
+% Author:
+%     T. Henderson
+%     UU
+%     Fall 2025
+%
+
+[num_rows,num_cols] = size(im);
+done = 0;
+r_cur = r;
+c_cur = c;
+del_row = -step*sin(theta);
+del_col = step*cos(theta);
+while done==0
+    r_cur = r_cur + del_row;
+    c_cur = c_cur + del_col;
+    r_int = round(r_cur);
+    c_int = round(c_cur);
+    if (r_int<1)||(r_int>=num_rows)||(c_int<1)||(c_int>=num_cols)
+        done = 1;
+    else
+        r_min = max(1,r_int-1);
+        r_max = min(num_rows,r_int+1);
+        c_min = max(1,c_int-1);
+        c_max = min(num_cols,c_int+1);
+        if sum(sum(im(r_min:r_max,c_min:c_max)))==0
+            done = 1;
+        end
+    end
+end
+
+d = norm([r;c]-[r_cur;c_cur]);
+end
+
+function cx = find_center(im)
+
+% scanline 25
+scanline = im(25, :, :);
+is_red = scanline(:, :, 1) > 150 & ...
+    scanline(:, :, 2) < 100 & ...
+    scanline(:, :, 3) < 100;
+
+rises = find(diff(is_red) == 1);
+falls = find(diff(is_red) == -1);
+n_caps = max(length(rises), length(falls));
+
+cap_size = 55;
+bottle_size = 130;
+if n_caps == 3
+    if length(rises) == 3 && length(falls) == 3
+        cx = round((rises(2) + falls(2)) / 2);
+    elseif length(rises) == 2 && length(falls) == 3
+        cx = round((rises(1) + falls(2)) / 2);
+    elseif length(rises) == 3 && length(falls) == 2
+        cx = round((rises(2) + falls(2)) / 2);
+    end
+elseif n_caps == 2
+    if length(rises) == 2
+        gap = rises(2) - rises(1);
+        center_missing = gap > bottle_size * 1.5;
+        if (center_missing)
+            cx = round((rises(1) + rises(2) + cap_size) / 2);
+        else
+            c1 = round(rises(1) + cap_size / 2);
+            c2 = round(rises(2) + cap_size / 2);
+            if abs(c1 - 176) < abs(c2 - 176)
+                cx = c1;
+            else
+                cx = c2;
+            end
+        end 
+    elseif length(falls) == 2
+        gap = falls(2) - falls(1);
+        center_missing = gap > bottle_size * 1.5;
+        if (center_missing)
+            cx = round((falls(1) + falls(2) + cap_size) / 2);
+        else
+            c1 = round(falls(1) - cap_size / 2);
+            c2 = round(falls(2) - cap_size / 2);
+            if abs(c1 - 176) < abs(c2 - 176)
+                cx = c1;
+            else
+                cx = c2;
+            end
+        end
+    end
+    
+else 
+    cx = 176;
+end
+
+if cx < 66
+    cx = 66;
+elseif cx + 65 > 352
+    cx = 352 - 65;
+end
+end
