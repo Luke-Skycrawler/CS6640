@@ -57,14 +57,14 @@ for k = 1: number_of_files
     d = zeros(1,8);
 
     % check for no bottle error
-    % d(8) = CS6640_defect_no_bottle(I);
-    % d(1) = CS6640_defect_under_filled(I);
-    % d(2) = CS6640_defect_over_filled(I);
+    d(8) = CS6640_defect_no_bottle(I);
+    d(1) = CS6640_defect_under_filled(I);
+    d(2) = CS6640_defect_over_filled(I);
     d(3) = CS6640_defect_label_missing(I);
-    % d(4) = CS6640_defect_white_label(I);
-    % d(5) = CS6640_defect_not_straight(I);
-    % d(6) = CS6640_defect_no_cap(I);
-    % d(7) = CS6640_defect_deformed(I);
+    d(4) = CS6640_defect_white_label(I);
+    d(5) = CS6640_defect_not_straight(I);
+    d(6) = CS6640_defect_no_cap(I);
+    d(7) = CS6640_defect_deformed(I);
 
     for j = 1: 8
         if d(j) > thresholds(j)
@@ -120,7 +120,7 @@ p1 = d2 * d2 / (d2 * d2 + d1 * d1);
 
 p = p1;
 if p > 0.9
-    p = 0.0; 
+    p = 1.0; 
     return;
 end
 
@@ -355,16 +355,12 @@ p = 0;
 [roi, r1, r2, c1, c2] = CS6640_get_center(im);
 
 gray = im2gray(roi);
-% imshow(gray);
 thres = 100;
 binary = gray < thres; 
-% figure();
 se = strel('disk', 5, 4);
 im6tc = imdilate(binary,se);
 im6tc = imerode(im6tc,se);
-% imshow(im6tc);
 
-% [labels, cnt] = bwlabel(~im6tc(160: size(im6tc, 1), :));
 [rows, cols] = find(~im6tc(160: size(im6tc, 1), :));
 n_label_pixels = size(rows, 1);
 p = 1 - n_label_pixels / 2500;
@@ -465,7 +461,7 @@ end
 
 % Defect 5: not straight
 function p = CS6640_defect_not_straight(im)
-% CS6640_defect_under_filled - determine if undr-filled
+% CS6640_defect_not_straight - determine if not straight
 % On input:
 %     im (MxNx3 array): input image
 % On output:
@@ -651,7 +647,7 @@ p1 = d2 * d2 / (d2 * d2 + d1 * d1);
 
 p = p1;
 if p > 0.9
-    p = 0.0; 
+    p = 1.0; 
     return;
 end
 shape = size(im);

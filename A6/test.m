@@ -4,7 +4,10 @@ d_gt = load('ground_truth.mat').ground_truth;
 [reports, d_inspect, thresholds] = CS6640_inspect('All');
 
 for i = 1: 141
-    for j = 3:3
+    for j = 1:8
+        if j == 7
+            continue;
+        end
         if d_inspect(i,j) > thresholds(j)
             d_inspect(i,j) = 1;
         else

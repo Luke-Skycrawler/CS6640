@@ -1,4 +1,12 @@
-#### CS6640 A5
+#### CS6640 A6
+
+
+
+
+
+
+
+
 
 
 
@@ -10,7 +18,19 @@ Haoyang Shi
 
 
 
-2025/10/30
+
+
+
+
+2025/11/5
+
+
+
+
+
+
+
+
 
 
 
@@ -22,7 +42,15 @@ Haoyang Shi
 
 
 
+
+
+
+
 I did not consult LLM on this task.
+
+
+
+
 
 
 
@@ -30,123 +58,58 @@ I did not consult LLM on this task.
 
 
 
+
+
+
+
 I used the provided `ground_truth.mat` file in my experiments.
 
 
 
-#### 3. Independent Defect Detection
 
 
 
-I made sure there are no dependencies between the functions.
 
 
 
+#### 3. Technical basis
 
 
 
+First, I find the center patch of where labels should be using the provided `CS6640_get_center` function and clip to the label region. Right after that I applied a gradient magnitude edge detector to detect the "no bottle" defect first, and if there is no bottle, I return a "no label" defect.
 
-#### 4. Technical basis
 
 
+Then I turn the middle patch into grayscale and binarize with threshold `100` to separate the dark coke regions. Then I applied dilation followed by erosion on the coke regions, with a radius 5 disk as structure element. The small regions are thus filtered out, and the remaining unselected region is identified as the "label pixels". Then I counted the number of the label pixels `n`, and divide it by threshold label pixel count `t` to get the probability that it has a label. The final probability is $1 -  \frac{n}{t}$. The threshold label pixel count is set to the label pixel count on the extreme case `image109` with crooked label, which has around 2500 label pixels. This method achieves a 100% precision on the test images. 
 
 
 
-##### 4.1 Preprocess
 
 
+33 |  34 | 35
+:-------------------------:|:-------------------------:|:-------------------------:
+![](Figure_1.png)  |  ![](Figure_2.png) | ![](Figure_3.png)
+![](Figure_4.png)| ![](5.png) | ![](Figure_6.png)
 
-This stage finds the upper white strip of the label. 
+**Figure 3.1. Binary image after the dilation and erosion operations. The remaining black pixels are then selected as the "label pixels".**
 
 
 
-First, I find the center patch of where labels should be using the provided `CS6640_get_center` function and clip to the label region. Then I turn it into grayscale and binarize with threshold `150` to separate the white regions. Then I applied opening (dilate after erosion) with a horizontal line of length 10 as structure element, only keeping regions with long horizontal span. Then I do a connected component analysis and select the component with the longest horizontal span. This patch is identified as the white strip on the label. 
+#### 4. Failure case for previous defects
 
 
 
-crooked label             |  normal label
-:-------------------------:|:-------------------------:
-![](open.png)  |  ![](open2.png)
-![](patch.png)| ![](patchc.png)
+The detectors for overfilled, label missing, white label, crooked label, and no cap defects all get 100% accuracy. 
 
 
 
-**Figure 4.1. Binary image after the opening operation. The longest component is then selected as the target white stripe.**
+My detector for underfilled has false positives on images 52, 136, and 137. Those are all deformed bottles and their liquid surfaces are all somewhat below average, so I counted them as underfilled bottles in my own version of ground truth. I need to re-set the threshold for underfilled for better coherence for the new ground truth. 
 
+![](results.png)
+**Figure 4.1. My previous thresholds for detecting overfilled and underfiled defects.**
 
 
-##### 4.2 Procrustes 
-
-
-
-I find the four corners of the extracted white stripe and compare it to a reference $5\times 100$ rectangle. For selecting the corners, I used the oracles $x + y$ and $x - y$, where x, y are the rows and colums of the pixel, e.g, the bottom right, top left have the largest and smallest $x + y$ value respectively. The corners are then organized in `[top_right, bottom right, bottom left, top left]` order as the reference rectangle, and a procrustes transformation is computed to map the reference shape to the extracted shape. Then I get the rotation matrix $R$ in the transformation, and used the absolute value of the off-diagonal term `R(1, 2)` to indicate the rotation angle. The probability of crooked label is then computed as $\frac{|R(1, 2)|}{0.1}$, where 0.1 is close to the least `|R(1,2)|` value of the positive samples. The probability threshold is set to 0.5. 
-
-
-
-![](procrustes.png)
-
-
-
-**Figure 4.2. The extracted shape X(in blue), reference shape Y(in red) and transformed shape after best-fit procrustes transformation(in yellow).**
-
-
-
-
-
-This method works notably well for distracting white label cases, where the whole label is detected as the region of interest. The procrustes method still find a resonable transformation with correct rotation. 
-
-![](prowhite.png)
-
-
-
-However, it fails for 3 deformed bottle images 61, 129 and 137. The accuracy is 138/141. 
-
-
-
-##### 4.3 Eigen Vector Method
-
-
-
-My implementation follows the paradigm in the course: 
-
-0. Segment the component of interest (done in preprocess)
-
-1. Get a range scan.
-
-2. Convert to x,y points.
-
-3. Get the covariance matrix.
-
-4. Get the eigenvalues and eigenvectors.
-
-
-
-crooked label             |  normal label | reference |
-:-------------------------:|:-------------------------:|:--------:|
-![](polar.png)  |  ![](polar2.png) | ![](polarref.png)
-$V = \begin{pmatrix}-0.9785,   -0.2064\\ 0.2064,   -0.9785\end{pmatrix}$ D = diag(122.3035,4.0765) | $V = \begin{pmatrix} -1.0,-0.0 \\ 0.0,-1.0\end{pmatrix}$, D = diag(122.3035,4.0765) | $V = \begin{pmatrix} -1.0,-0.0 \\ 0.0,-1.0\end{pmatrix}$, D = diag(100, 5)
-
-
-
-**Figure 4.3. Polar scans and eigen vectors of crooked label, normal label and reference shape.** 
-
-
-
-Then I used the same measure described in section 4.2 to compute the probability, i.e. $p = \frac{|R(1, 2)|}{0.1}$, only now $R$ is the matrix whose columns are formed by the eigen vectors, instead of the rotation matrix in section 4.2.   
-
-
-
-This method also fails for deformed bottle images 129 and 137. The accuracy is 139/141.
-
-
-
-
-
-
-
-With the two methods independently developed, the fusion will be a simple averaging. 
-
-
+My detector for "crooked label" has trouble with the deformed bottles 129 and 137. Both of my methods relys on the shape of white stripes on the label, and the deformed plastic creates specular reflections near the top of the label and is identified as white stripe by my detector, thus leading to failure. To improve the robustness to the specular highlights, I could do a median filter before detecting the white stripes, as the specular regions tend to be small. However, the real solution should be that I make at least one of the methods to use the bulk red region on the label to better fight the noise, e.g., dilate the red label regions and detect the corners, and compare it to the rectangular reference shape. 
 
 
 
@@ -160,5 +123,15 @@ With the two methods independently developed, the fusion will be a simple averag
 
 
 
+
+
+
+
+
+
+
+
 I have not changed the previous defect functions.
+
+
 
