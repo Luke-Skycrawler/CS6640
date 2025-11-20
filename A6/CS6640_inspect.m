@@ -148,7 +148,7 @@ if ~valid
 end
 
 
-centers = [137, 168, 119] - 61;
+centers = [137, 145, 119] - 61;
 dy = abs(y - centers);
 p = 1.0 - dy(2) / (centers(2) - centers(1));
 p = max(p, 0);
@@ -178,7 +178,7 @@ if isempty(y1)
     y1 = 255;
 end
 
-centers = [137, 168, 119] - 69;
+centers = [137, 145, 119] - 69;
 dy = abs(y1 - centers);
 p1 = 1.0 - dy(2) / (centers(2) - centers(1));
 p1 = max(p1, 0);
@@ -512,7 +512,7 @@ end
 [roi, r1, r2, c1, c2] = CS6640_get_center(im);
 patch = roi(170: 275, :, :);
 patchg = im2gray(patch);
-patchb = patchg > 150;
+patchb = patchg > 200;
 se = strel('line',10,0);
 im6tc = imerode(patchb,se);
 im6tc = imdilate(im6tc,se);
@@ -566,7 +566,7 @@ end
 if white
 p1 = abs(VV1(2, 1));
 else 
-p1 = abs(VV1(2, 1)) / 0.1;
+p1 = abs(VV1(2, 1)) / 0.15;
 end
 p1 = min(p1, 1.0);
 
@@ -594,10 +594,10 @@ Y = [100, 0; 100, 5; 0, 5; 0, 0; ];
 
 rotation = transform.T;
 angle = rotation(2, 1);
-p2 = abs(angle) / 0.1;
+p2 = abs(angle) / 0.15;
 p2 = min(p2, 1.0);
 
-p = (p1 + p2) / 2;
+p = (p1 * 0.1 + p2 * 0.9);
 end
 
 % Defect 6: no cap
